@@ -16,7 +16,8 @@ app = FastAPI(title=settings.app_name)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["https://interview-assistant-azure.vercel.app/"],
+    allow_origins=["https://interview-assistant-azure.vercel.app"],
+    allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
