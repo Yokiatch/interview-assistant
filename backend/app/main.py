@@ -1,8 +1,9 @@
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import settings
-from app.models.schemas import IngestResponse
+from app.models.schemas import IngestResponse, GenerateQuestionsRequest, GenerateQuestionsResponse
 from app.services.ingest import ingest_document
+from app.services.question_gen import generate_questions
 
 app = FastAPI(title=settings.app_name)
 
@@ -34,3 +35,12 @@ async def ingest(
         chunks_stored=chunks_stored,
         message=f"Ingested {chunks_stored} chunks successfully.",
     )
+
+@app.post("/questions", response_model=GenerateQuestionsResponse)
+def questions(req: GenerateQuestionsRequest):
+    try:
+        qs = generate_questions(req.session_id, req.job_description)
+    except ValueError as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+    return GenerateQuestionsResponse(session_id=req.session_id, questions=qs)

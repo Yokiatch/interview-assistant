@@ -17,9 +17,7 @@ class Question(BaseModel):
 
 class GenerateQuestionsResponse(BaseModel):
     session_id: str
-    question_id: int
-    question_text: str
-    answer: str
+    questions: list[Question]
 
 class Feedback(BaseModel):
     score: int

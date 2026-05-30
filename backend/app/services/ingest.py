@@ -38,7 +38,7 @@ def embed_chunks(chunks: list[str]) -> list[list[float]]:
     embeddings = []
     for chunk in chunks:
         result = genai.embed_content(
-            model="models/text-embedding-004",
+            model="models/gemini-embedding-001",
             content=chunk,
             task_type="RETRIEVAL_DOCUMENT",
         )

@@ -1,11 +1,16 @@
 from qdrant_client import QdrantClient
 from qdrant_client.models import Distance, VectorParams, PointStruct
 import uuid
+import google.generativeai as genai
+from app.core.config import settings
+
+
+genai.configure(api_key=settings.gemini_api_key)
 
 # Single in-memory client shared across the app
 client = QdrantClient(":memory:")
 
-VECTOR_SIZE = 768  # dimensions for text-embedding-3-small
+VECTOR_SIZE = 3072  # dimensions for text-embedding-3-small
 
 
 def create_collection(session_id: str):
@@ -37,3 +42,16 @@ def retrieve_chunks(session_id: str, query_vector: list[float], top_k: int) -> l
         limit=top_k,
     )
     return [hit.payload["text"] for hit in results]
+
+def embed_query(text: str) -> list[float]:
+    """
+    Embed a search query.
+    task_type RETRIEVAL_QUERY is different from RETRIEVAL_DOCUMENT —
+    it tells the model this is a question, not a document.
+    """
+    result = genai.embed_content(
+        model="models/gemini-embedding-001",
+        content=text,
+        task_type="RETRIEVAL_QUERY",
+    )
+    return result["embedding"]
