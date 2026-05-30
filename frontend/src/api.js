@@ -2,7 +2,7 @@ import axios from 'axios';
 
 // In Docker, nginx proxies /api/* to backend
 // In dev, talk directly to localhost:8000
-const BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+const BASE = import.meta.env.VITE_API_URL || 'https://interview-assistant-jo4o.onrender.com';
 
 export async function ingestResume(resumeFile, jobDescription) {
   const form = new FormData();
