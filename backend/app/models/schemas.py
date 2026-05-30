@@ -19,6 +19,12 @@ class GenerateQuestionsResponse(BaseModel):
     session_id: str
     questions: list[Question]
 
+class EvaluateAnswerRequest(BaseModel):
+    session_id: str
+    question_id: int
+    question_text: str
+    answer: str
+
 class Feedback(BaseModel):
     score: int
     strengths: list[str]

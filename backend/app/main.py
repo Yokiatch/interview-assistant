@@ -1,9 +1,16 @@
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import settings
-from app.models.schemas import IngestResponse, GenerateQuestionsRequest, GenerateQuestionsResponse
+from app.models.schemas import (
+    IngestResponse,
+    GenerateQuestionsRequest,
+    GenerateQuestionsResponse,
+    EvaluateAnswerRequest,
+    EvaluateAnswerResponse,
+)
 from app.services.ingest import ingest_document
 from app.services.question_gen import generate_questions
+from app.services.evaluator import evaluate_answer
 
 app = FastAPI(title=settings.app_name)
 
@@ -13,6 +20,7 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
 
 @app.get("/health")
 def health():
@@ -26,15 +34,14 @@ async def ingest(
 ):
     if resume.content_type != "application/pdf":
         raise HTTPException(status_code=400, detail="Only PDF files are accepted.")
-
     file_bytes = await resume.read()
     session_id, chunks_stored = ingest_document(file_bytes, job_description)
-
     return IngestResponse(
         session_id=session_id,
         chunks_stored=chunks_stored,
         message=f"Ingested {chunks_stored} chunks successfully.",
     )
+
 
 @app.post("/questions", response_model=GenerateQuestionsResponse)
 def questions(req: GenerateQuestionsRequest):
@@ -42,5 +49,20 @@ def questions(req: GenerateQuestionsRequest):
         qs = generate_questions(req.session_id, req.job_description)
     except ValueError as e:
         raise HTTPException(status_code=500, detail=str(e))
-
     return GenerateQuestionsResponse(session_id=req.session_id, questions=qs)
+
+
+@app.post("/evaluate", response_model=EvaluateAnswerResponse)
+def evaluate(req: EvaluateAnswerRequest):
+    try:
+        feedback = evaluate_answer(
+            session_id=req.session_id,
+            question_text=req.question_text,
+            answer=req.answer,
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    return EvaluateAnswerResponse(
+        question_id=req.question_id,
+        feedback=feedback,
+    )
