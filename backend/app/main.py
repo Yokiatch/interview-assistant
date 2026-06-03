@@ -16,7 +16,10 @@ app = FastAPI(title=settings.app_name)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["https://interview-assistant-azure.vercel.app"],
+    allow_origins=[
+        "http://localhost:5173",
+        "http://localhost:80",
+        "https://interview-assistant-azure.vercel.app",],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -67,3 +70,18 @@ def evaluate(req: EvaluateAnswerRequest):
         question_id=req.question_id,
         feedback=feedback,
     )
+
+@app.get("/session/{session_id}")
+def resume_session(session_id: str):
+    """Check if a session exists and is resumable."""
+    session = get_session(session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found or expired.")
+    if not collection_exists(session_id):
+        raise HTTPException(status_code=404, detail="Vector data expired. Please re-upload.")
+    return {
+        "session_id": session_id,
+        "resumable": True,
+        "questions": session.get("questions", []),
+        "answered_ids": session.get("answered_ids", []),
+    }

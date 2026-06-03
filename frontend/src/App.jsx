@@ -1,5 +1,6 @@
-import { useState, useRef, useCallback } from 'react';
-import { ingestResume, getQuestions, evaluateAnswer } from './api';
+import { useState, useRef, useCallback, useEffect } from 'react';
+import { ingestResume, getQuestions, evaluateAnswer, resumeSession } from './api';
+
 
 // ── Design tokens ─────────────────────────────────────────────────────────────
 const theme = {
@@ -98,6 +99,7 @@ const GLOBAL_CSS = `
     transition: stroke-dashoffset 1.2s cubic-bezier(.22,.68,0,1.2);
   }
 `;
+
 
 function injectStyles() {
   if (document.getElementById('aia-styles')) return;
@@ -565,6 +567,20 @@ function FeedbackScreen({ feedback, question, onNext, onRetry, hasNext }) {
   );
 }
 
+const SESSION_KEY = 'interview_session_id';
+
+function saveSessionLocally(sessionId) {
+  localStorage.setItem(SESSION_KEY, sessionId);
+}
+
+function loadSessionLocally() {
+  return localStorage.getItem(SESSION_KEY);
+}
+
+function clearSessionLocally() {
+  localStorage.removeItem(SESSION_KEY);
+}
+
 // ── Root ──────────────────────────────────────────────────────────────────────
 export default function App() {
   const [screen, setScreen]           = useState(SCREEN.UPLOAD);
@@ -573,8 +589,29 @@ export default function App() {
   const [currentQ, setCurrentQ]       = useState(null);
   const [currentQIdx, setCurrentQIdx] = useState(0);
   const [feedback, setFeedback]       = useState(null);
+  const [resuming, setResuming]       = useState(true);
+
+
+  useEffect(() => {
+  async function tryResume() {
+    const savedId = loadSessionLocally();
+    if (!savedId) { setResuming(false); return; }
+    try {
+      const data = await resumeSession(savedId);
+      setSessionId(data.session_id);
+      setQuestions(data.questions);
+      setScreen(SCREEN.QUESTIONS);
+    } catch {
+      clearSessionLocally();
+    } finally {
+      setResuming(false);
+    }
+    }
+      tryResume();
+    }, []);
 
   function handleIngestDone({ sessionId, questions }) {
+    saveSessionLocally(sessionId);
     setSessionId(sessionId); setQuestions(questions);
     setScreen(SCREEN.QUESTIONS);
   }
@@ -593,11 +630,21 @@ export default function App() {
     if (next < questions.length) { setCurrentQ(questions[next]); setCurrentQIdx(next); setFeedback(null); setScreen(SCREEN.ANSWER); }
     else setScreen(SCREEN.QUESTIONS);
   }
+  if (resuming) return (
+  <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#5a7099', fontFamily: 'DM Sans, sans-serif' }}>
+    Resuming session...
+  </div>
+  );
 
   return (
     <div style={{ background: `radial-gradient(ellipse 80% 60% at 50% -10%, rgba(59,130,246,0.08) 0%, transparent 70%), ${theme.bg}`, minHeight: '100vh' }}>
       {screen === SCREEN.UPLOAD    && <UploadScreen    onDone={handleIngestDone} />}
-      {screen === SCREEN.QUESTIONS && <QuestionsScreen questions={questions} onSelect={handleSelectQuestion} onReset={() => setScreen(SCREEN.UPLOAD)} />}
+      {screen === SCREEN.QUESTIONS && <QuestionsScreen questions={questions} onSelect={handleSelectQuestion} onReset={() => {
+  clearSessionLocally();
+  setScreen(SCREEN.UPLOAD);
+  setSessionId('');
+  setQuestions([]);
+}} />}
       {screen === SCREEN.ANSWER    && <AnswerScreen    question={currentQ} questionIndex={currentQIdx} total={questions.length} sessionId={sessionId} onFeedback={handleFeedback} onBack={() => setScreen(SCREEN.QUESTIONS)} />}
       {screen === SCREEN.FEEDBACK  && <FeedbackScreen  feedback={feedback} question={currentQ} onNext={handleNext} onRetry={() => setScreen(SCREEN.ANSWER)} hasNext={currentQIdx + 1 < questions.length} />}
     </div>

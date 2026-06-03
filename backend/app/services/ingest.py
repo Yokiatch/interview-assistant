@@ -4,6 +4,7 @@ import io
 import google.generativeai as genai
 from app.core.config import settings
 from app.core.vector_store import create_collection, store_chunks
+from app.core.session_store import save_session
 
 genai.configure(api_key=settings.gemini_api_key)
 
@@ -31,10 +32,6 @@ def chunk_text(text: str, chunk_size: int, overlap: int) -> list[str]:
 
 
 def embed_chunks(chunks: list[str]) -> list[list[float]]:
-    """
-    Gemini requires embedding one chunk at a time — no batch API.
-    task_type RETRIEVAL_DOCUMENT tells the model these are documents to be searched.
-    """
     embeddings = []
     for chunk in chunks:
         result = genai.embed_content(
@@ -57,5 +54,13 @@ def ingest_document(file_bytes: bytes, job_description: str) -> tuple[str, int]:
 
     create_collection(session_id)
     store_chunks(session_id, chunks, embeddings)
+
+    # Persist session metadata to Redis
+    save_session(session_id, {
+        "job_description": job_description,
+        "questions": [],
+        "answered_ids": [],
+        "chunks_stored": len(chunks),
+    })
 
     return session_id, len(chunks)
